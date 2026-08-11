@@ -86,14 +86,14 @@ module.exports = (client) => {
 
             const welcomeEmbed = new EmbedBuilder()
                 .setColor("#2B2D31")
-                .setTitle("AEROZ ESPORTS — BIENVENUE")
-                .setDescription(`Bienvenue sur le serveur officiel d'Aeroz Esports, ${member}.`)
+                .setTitle("HELORIA ESPORTS — BIENVENUE")
+                .setDescription(`Bienvenue sur le serveur officiel d'HeLoRiA Esports, ${member}.`)
                 .addFields(
                     { name: "Membre numéro", value: `${memberCount}`, inline: true },
                     { name: "Invité par", value: `${inviterText} ${scoreText}`, inline: true }
                 )
                 .setThumbnail(config.LOGO_URL)
-                .setFooter({ text: `Aeroz Esports • Effectif actuel : ${memberCount}` })
+                .setFooter({ text: `HeLoRiA Esports • Effectif actuel : ${memberCount}` })
                 .setTimestamp();
 
             welcomeChannel.send({ embeds: [welcomeEmbed] }).catch(() => {});
