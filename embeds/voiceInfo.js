@@ -1,0 +1,47 @@
+const { EmbedBuilder } = require('discord.js');
+
+// Listes des IDs des salons d'accompagnement vocal
+const VOICE_CHANNEL_IDS = [
+    '1536344274638209084',
+    '1536344319877849108',
+    '1536344337359577178',
+    '1536344371027517469',
+    '1533586742668689519'
+];
+
+// Emojis personnalisés
+const EMOJIS = {
+    WARNING: '<:warningd:1533535400176386068>',
+    UPDATE: '<:update:1533535384674369777>',
+    LOCK: '<a:lockicon:1533535370787033198>'
+};
+
+const createVoiceEmbed = () => {
+    return new EmbedBuilder()
+        .setColor('#D4AF37')
+        .setTitle(`${EMOJIS.LOCK} Fermeture de ce salon textuel`)
+        .setDescription(
+            `> **Ce salon est actuellement verrouillé à l'écriture.**\n\n` +
+
+            `L'équipe de modération concentre ses interventions sur les salons textuels principaux afin de garantir un espace d'échange fluide et sécurisé. Ne pouvant assurer une surveillance continue sur l'ensemble des salons d'accompagnement vocal, la rédaction y a été temporairement suspendue.\n\n` +
+
+            `**${EMOJIS.WARNING} Pourquoi cette mesure ?**\n` +
+            `› *Prévention des débordements :* Cet espace faisait trop souvent l'objet de messages inappropriés, de propos haineux ou de règlements de comptes hors cadre.\n` +
+            `› *Partage d'identifiants :* L'envoi répétitif de pseudos en jeu encombrait inutilement ce canal.\n\n` +
+
+            `**${EMOJIS.UPDATE} Comment procéder désormais ?**\n` +
+            `› Pour partager vos pseudo (Epic Games, Discord, etc.), privilégiez le salon de discussion général ou utilisez le partage d'écran directement dans votre salon vocal.\n` +
+            `› Si l'équipe de direction décide de réouvrir cet accès à l'avenir, une annonce sera publiée pour vous en informer.\n\n` +
+
+            `*Nous vous remercions pour votre compréhension et votre collaboration.*`
+        )
+        .setFooter({
+            text: 'HeLoRiA • #RiseSoarConquer',
+            iconURL: 'https://media.discordapp.net/attachments/1531791102011772966/1537576540991127613/a9275f03-54ce-466f-afbd-6f67fb185796.png?ex=6a7f8b3e&is=6a7e39be&hm=d3a936db99c5ec4dc13609ae8eba49975bd2b655d8788cf10fa1f79e78bc30d4&=&format=webp&quality=lossless&width=320&height=320'
+        });
+};
+
+module.exports = { 
+    createVoiceEmbed,
+    VOICE_CHANNEL_IDS 
+};
