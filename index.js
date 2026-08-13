@@ -8,14 +8,14 @@ const welcomeManager = require('./modules/welcomeManager');
 const roleManager = require('./modules/roleManager');
 const ticketSystem = require('./modules/ticketSystem');
 
-// Chargement des modules Embeds / Salons d'information
-const voiceInfo = require('./voiceInfo');
-const infoPack = require('./infoPack');
-const soutenir = require('./soutenir');
-const partenaire = require('./partenaire');
-const reglement = require('./reglement');
-const presentation = require('./presentation');
-const critereEsport = require('./critereEsport');
+// Chargement des modules Embeds / Salons d'information depuis le dossier ./embeds/
+const voiceInfo = require('./embeds/voiceInfo');
+const infoPack = require('./embeds/infoPack');
+const soutenir = require('./embeds/soutenir');
+const partenaire = require('./embeds/partenaire');
+const reglement = require('./embeds/reglement');
+const presentation = require('./embeds/presentation');
+const critereEsport = require('./embeds/critereEsport');
 
 const client = new Client({
     intents: [
