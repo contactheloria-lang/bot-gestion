@@ -44,8 +44,6 @@ const EMOJIS = {
 
 // Registres en mémoire RAM
 const tempChannels = new Map();
-const nameCooldowns = new Map(); 
-
 let voiceEventsRegistered = false;
 
 // Stockage sécurisé JSON
@@ -100,7 +98,7 @@ module.exports = (client) => {
                 `• **Activité Détectée :** ${gameText}\n\n` +
                 `> Gérez l'accès, la confidentialité et les membres de votre salon via les boutons et menus ci-dessous.`
             )
-            .setFooter({ text: "HeLoRiA • Interface Éphémère", iconURL: "https://cdn.discordapp.com/emojis/1533535400176386068.png" })
+            .setFooter({ text: "HeLoRiA • Interface Éphémère" })
             .setTimestamp();
     };
 
@@ -117,7 +115,7 @@ module.exports = (client) => {
         }
     };
 
-    // Purge de démarrage & maintenance
+    // Purge de démarrage
     const runGarbageCollector = async (guild) => {
         const category = await guild.channels.fetch(config.TEMP_CATEGORY).catch(() => null);
         let deletedCount = 0;
@@ -186,7 +184,6 @@ module.exports = (client) => {
                 const userTemplate = db.savedConfigs?.[member.id];
                 const userWhitelist = db.whitelists?.[member.id] || [];
 
-                // Détection de jeu automatique
                 let detectedGame = null;
                 const activity = member.presence?.activities?.find(a => a.type === 0);
                 if (activity) detectedGame = activity.name;
@@ -194,10 +191,21 @@ module.exports = (client) => {
                 let channelName = detectedGame ? `🎮 ${detectedGame}` : `🎙️ Salon de ${member.user.username}`;
                 if (userTemplate?.name) channelName = userTemplate.name;
 
+                // PERMISSIONS CORRIGÉES : Ajout explicite de SendMessages et ViewChannel pour le Bot & le Membre
                 let contextPermissions = [
                     {
                         id: guild.id,
-                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.Connect]
+                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.Connect, PermissionsBitField.Flags.SendMessages]
+                    },
+                    {
+                        id: client.user.id,
+                        allow: [
+                            PermissionsBitField.Flags.ViewChannel,
+                            PermissionsBitField.Flags.Connect,
+                            PermissionsBitField.Flags.SendMessages,
+                            PermissionsBitField.Flags.EmbedLinks,
+                            PermissionsBitField.Flags.ManageChannels
+                        ]
                     },
                     {
                         id: member.id,
@@ -205,12 +213,12 @@ module.exports = (client) => {
                             PermissionsBitField.Flags.ViewChannel, 
                             PermissionsBitField.Flags.Connect, 
                             PermissionsBitField.Flags.Speak,
+                            PermissionsBitField.Flags.SendMessages,
                             PermissionsBitField.Flags.MuteMembers
                         ]
                     }
                 ];
 
-                // Whitelist automatique
                 userWhitelist.forEach(targetId => {
                     contextPermissions.push({
                         id: targetId,
@@ -245,9 +253,11 @@ module.exports = (client) => {
                 };
 
                 tempChannels.set(targetChannel.id, runtimeData);
-                await member.voice.setChannel(targetChannel).catch(() => {});
 
-                // Boutons d'interaction avec Emojis
+                // Déplace le joueur dans le salon créé
+                await member.voice.setChannel(targetChannel).catch(err => console.error("[VOICE] Erreur move membre :", err));
+
+                // Composants UI
                 const row1 = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId("vc_open").setLabel("Ouvrir").setEmoji(EMOJIS.UNLOCK).setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder().setCustomId("vc_lock").setLabel("Verrouiller").setEmoji(EMOJIS.LOCK).setStyle(ButtonStyle.Secondary),
@@ -282,14 +292,20 @@ module.exports = (client) => {
                         ])
                 );
 
-                const dashboardMsg = await targetChannel.send({
-                    embeds: [createDashboardEmbed(member, targetChannel, runtimeData)],
-                    components: [row1, row2, row3, rowLimits]
-                }).catch(() => null);
+                // Envoi sécurisé de l'Embed de contrôle
+                try {
+                    const dashboardMsg = await targetChannel.send({
+                        content: `Bienvenue dans ton salon ${member} !`,
+                        embeds: [createDashboardEmbed(member, targetChannel, runtimeData)],
+                        components: [row1, row2, row3, rowLimits]
+                    });
 
-                if (dashboardMsg) {
-                    runtimeData.dashboardMessageId = dashboardMsg.id;
-                    tempChannels.set(targetChannel.id, runtimeData);
+                    if (dashboardMsg) {
+                        runtimeData.dashboardMessageId = dashboardMsg.id;
+                        tempChannels.set(targetChannel.id, runtimeData);
+                    }
+                } catch (sendError) {
+                    console.error("[VOICE] Impossible d'envoyer le message de dashboard dans le salon vocal :", sendError);
                 }
             }
 

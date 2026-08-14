@@ -133,7 +133,7 @@ module.exports = (client) => {
                         `Affichez votre division compétitive actuelle.\n\n` +
                         `> **Note importante :** L'accès à la **Division 1** nécessite impérativement une vérification de vos preuves de rang auprès du Staff.`
                     )
-                    .setFooter({ text: "HeLoRiA • #RiseSoarConquer", iconURL: "https://cdn.discordapp.com/emojis/1533535400176386068.png" });
+                    .setFooter({ text: "HeLoRiA • #RiseSoarConquer", iconURL: "https://media.discordapp.net/attachments/1531791102011772966/1537576540991127613/a9275f03-54ce-466f-afbd-6f67fb185796.png?ex=6a8033fe&is=6a7ee27e&hm=349ba9cd2750d9abee196ebab615d71e19080038a4b6b7746e861639d3a86344&=&format=webp&quality=lossless&width=1024&height=1024" });
 
                 const menuDivision = new ActionRowBuilder().addComponents(
                     new StringSelectMenuBuilder()
