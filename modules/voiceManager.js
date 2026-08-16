@@ -191,7 +191,7 @@ module.exports = (client) => {
                 let channelName = detectedGame ? `🎮 ${detectedGame}` : `🎙️ Salon de ${member.user.username}`;
                 if (userTemplate?.name) channelName = userTemplate.name;
 
-                // PERMISSIONS CORRIGÉES : Ajout explicite de SendMessages et ViewChannel pour le Bot & le Membre
+                // PERMISSIONS EXPLICITES : @everyone, Client Bot & Propriétaire du salon
                 let contextPermissions = [
                     {
                         id: guild.id,
@@ -256,6 +256,9 @@ module.exports = (client) => {
 
                 // Déplace le joueur dans le salon créé
                 await member.voice.setChannel(targetChannel).catch(err => console.error("[VOICE] Erreur move membre :", err));
+
+                // Temporisation de sécurité pour laisser à Discord le temps d'appliquer les permissions API
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Composants UI
                 const row1 = new ActionRowBuilder().addComponents(
