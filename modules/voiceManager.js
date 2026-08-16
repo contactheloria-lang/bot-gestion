@@ -20,26 +20,26 @@ const config = require("../data/voiceConfig");
 const COLOR_GOLD = "#D4AF37";
 const COLOR_BLACK = "#000001";
 
-// Emojis du système vocal
+// Emojis du système vocal (Personnalisés HeLoRiA)
 const EMOJIS = {
-    VOICE: "🎙️",
-    CROWN: "👑",
-    GEAR: "⚙️",
-    LOCK: "🔒",
-    UNLOCK: "🔓",
-    HIDE: "👁️‍🗨️",
-    USER: "👤",
-    GAME: "🎮",
-    BITRATE: "🔊",
-    SAVE: "💾",
-    ADD_USER: "➕",
-    REMOVE_USER: "➖",
-    MUTE: "🎙️❌",
-    TRANSFER: "👑➡️",
-    CHECK: "✅",
-    WARN: "⚠️",
-    STATS: "📊",
-    CLOCK: "⏱️"
+    VOICE: "<:68052micanimation:1537582247278813204>",
+    CROWN: "<a:darkbluecrown:1533535362566324245>",
+    GEAR: "<:65264telescope:1537586517453832222>",
+    LOCK: "<a:lockicon:1533535370787033198>",
+    UNLOCK: "<:5647premiumicon:1533535330538360942>",
+    HIDE: "<:580437rules:1537583160345366578>",
+    USER: "<:75828briefcase:1537579702812807248>",
+    GAME: "<:hlrwin:1537584105536094248>",
+    BITRATE: "<:20336certified:1537579306690281544>",
+    SAVE: "<:6880quill:1537585310794391563>",
+    ADD_USER: "<:600404handshake:1537578056447828058>",
+    REMOVE_USER: "<:9299blurpleban:1533535325996056807>",
+    MUTE: "<:94919trialmod:1537582836318609521>",
+    TRANSFER: "<:3446blurplecertifiedmoderator:1533535324309815367>",
+    CHECK: "<:20336certified:1537579306690281544>",
+    WARN: "<:warningd:1533535400176386068>",
+    STATS: "<:63043moneyspread:1537577805829636117>",
+    CLOCK: "<a:loadingicon:1533535386951749683>"
 };
 
 // Registres en mémoire RAM
@@ -84,7 +84,7 @@ module.exports = (client) => {
         if (data.isPrivate) statusText = `${EMOJIS.HIDE} **Masqué & Privé**`;
 
         const limitText = data.userLimit === 0 ? "👥 **Illimitée**" : `👥 **${data.userLimit} places**`;
-        const gameText = data.detectedGame ? `${EMOJIS.GAME} **${data.detectedGame}**` : "🎮 **Aucun jeu détecté**";
+        const gameText = data.detectedGame ? `${EMOJIS.GAME} **${data.detectedGame}**` : `${EMOJIS.GAME} **Aucun jeu détecté**`;
 
         return new EmbedBuilder()
             .setColor(COLOR_GOLD)
@@ -191,7 +191,6 @@ module.exports = (client) => {
                 let channelName = detectedGame ? `🎮 ${detectedGame}` : `🎙️ Salon de ${member.user.username}`;
                 if (userTemplate?.name) channelName = userTemplate.name;
 
-                // PERMISSIONS EXPLICITES : @everyone, Client Bot & Propriétaire du salon
                 let contextPermissions = [
                     {
                         id: guild.id,
@@ -257,10 +256,10 @@ module.exports = (client) => {
                 // Déplace le joueur dans le salon créé
                 await member.voice.setChannel(targetChannel).catch(err => console.error("[VOICE] Erreur move membre :", err));
 
-                // Temporisation de sécurité pour laisser à Discord le temps d'appliquer les permissions API
+                // Temporisation de synchronisation API Discord
                 await new Promise(resolve => setTimeout(resolve, 500));
 
-                // Composants UI
+                // Composants UI avec vos émojis personnalisés
                 const row1 = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId("vc_open").setLabel("Ouvrir").setEmoji(EMOJIS.UNLOCK).setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder().setCustomId("vc_lock").setLabel("Verrouiller").setEmoji(EMOJIS.LOCK).setStyle(ButtonStyle.Secondary),
@@ -276,10 +275,10 @@ module.exports = (client) => {
                 );
 
                 const row3 = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId("vc_rename").setLabel("Renommer").setEmoji("✏️").setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId("vc_rename").setLabel("Renommer").setEmoji(EMOJIS.SAVE).setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder().setCustomId("vc_bitrate").setLabel("Qualité").setEmoji(EMOJIS.BITRATE).setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder().setCustomId("vc_save").setLabel("Sauvegarder").setEmoji(EMOJIS.SAVE).setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId("vc_save_whitelist").setLabel("Whitelist").setEmoji("⭐").setStyle(ButtonStyle.Secondary)
+                    new ButtonBuilder().setCustomId("vc_save_whitelist").setLabel("Whitelist").setEmoji(EMOJIS.CROWN).setStyle(ButtonStyle.Secondary)
                 );
 
                 const rowLimits = new ActionRowBuilder().addComponents(
@@ -295,7 +294,7 @@ module.exports = (client) => {
                         ])
                 );
 
-                // Envoi sécurisé de l'Embed de contrôle
+                // Envoi du Dashboard
                 try {
                     const dashboardMsg = await targetChannel.send({
                         content: `Bienvenue dans ton salon ${member} !`,
