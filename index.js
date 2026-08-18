@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials, ActivityType, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, ActivityType, PermissionFlagsBits } = require('discord.js');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -55,9 +55,6 @@ const client = new Client({
     ],
     partials: [Partials.Message, Partials.Channel, Partials.GuildMember]
 });
-
-// État global de la maintenance
-let isMaintenanceActive = false;
 
 // =====================================================
 // GESTION DU STOCKAGE DES IDs DE MESSAGES
@@ -168,14 +165,6 @@ client.once('ready', async (c) => {
     // Boucle de statut dynamique
     let statusIndex = 0;
     setInterval(async () => {
-        if (isMaintenanceActive) {
-            client.user.setPresence({
-                activities: [{ name: "CustomStatus", state: "Maintenance en cours", type: ActivityType.Custom }],
-                status: 'dnd'
-            });
-            return;
-        }
-
         const totalMembers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
         const activities = [
             { name: "CustomStatus", state: `${totalMembers} membres sur le serveur`, type: ActivityType.Custom },
@@ -189,116 +178,6 @@ client.once('ready', async (c) => {
 
         statusIndex = (statusIndex + 1) % activities.length;
     }, 15000);
-});
-
-// =====================================================
-// SÉCURITÉ DE INTERACTION (BLOCAGE DES TICKETS EN MAINTENANCE)
-// =====================================================
-client.on('interactionCreate', async (interaction) => {
-    if (!isMaintenanceActive) return;
-
-    // Détection des interactions liées au système de ticket (Boutons ou Menu Déroulant)
-    if (interaction.isButton() || interaction.isStringSelectMenu()) {
-        if (interaction.customId.includes('ticket') || interaction.customId.includes('open_ticket')) {
-            return interaction.reply({
-                content: `${EMOJIS.WARNING} **Maintenance en cours**\n\n${EMOJIS.LOCK} *Le système de ticket est actuellement indisponible.*\n${EMOJIS.LOADING} Le problème sera résolu dans **1 à 2 heures**. Veuillez patienter, merci de votre compréhension !`,
-                ephemeral: true
-            });
-        }
-    }
-});
-
-// =====================================================
-// COMMANDES DE MAINTENANCE
-// =====================================================
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    if (message.content === '!maintenance') {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply("❌ Permission insuffisante.");
-        }
-
-        isMaintenanceActive = true;
-
-        // Statut 'dnd' immédiat
-        client.user.setPresence({
-            activities: [{ name: "CustomStatus", state: "Maintenance en cours", type: ActivityType.Custom }],
-            status: 'dnd'
-        });
-
-        // Embed Principal 1 : Annonce Officielle
-        const mainEmbed = new EmbedBuilder()
-            .setTitle(`${EMOJIS.WARNING} ${EMOJIS.LOCK} INTERVENTION TECHNIQUE URGENTE ${EMOJIS.LOCK} ${EMOJIS.WARNING}`)
-            .setDescription(
-                `# ${EMOJIS.CROWN} **INTERRUPTION TEMPORAIRE DES SERVICES**\n\n` +
-                `> ${EMOJIS.QUILL} ***Chers membres de HeLoRiA,***\n` +
-                `Une maintenance technique d'urgence est actuellement appliquée sur nos infrastructures afin d'effectuer des mises à jour majeures et corriger des dysfonctionnements sur nos modules principaux.\n\n` +
-                `~~` + '─'.repeat(30) + `~~\n\n` +
-                `### ${EMOJIS.UPDATE} **SITUATION ACTUELLE**\n` +
-                `* ${EMOJIS.TICKET} **Module Support & Tickets :** **\` HORS SERVICE \`**\n` +
-                `* ${EMOJIS.BRIEFCASE} **Recrutements Joueurs :** **\` INACCESSIBLES \`**\n` +
-                `* ${EMOJIS.CERTIFIED} **Systèmes d'Auto-Rôles :** **\` INDISPONIBLES \`**\n` +
-                `* ${EMOJIS.MIC} **Salons Vocaux Automatisés :** **\` PERTURBÉS \`**\n\n` +
-                `~~` + '─'.repeat(30) + `~~`
-            )
-            .setColor(0xFF4500)
-            .setThumbnail(client.user.displayAvatarURL());
-
-        // Embed Principal 2 : Détails & Délais
-        const detailEmbed = new EmbedBuilder()
-            .setTitle(`${EMOJIS.TELESCOPE} **DÉTAILS ET TEMPS D'ATTENTE**`)
-            .setDescription(
-                `### ${EMOJIS.LOADING} **DURÉE ESTIMÉE DE L'INTERVENTION**\n` +
-                `> **\` 1 À 2 HEURES AU MAXIMUM \`**\n\n` +
-                `Nos développeurs travaillent activement pour rétablir l'intégralité des fonctionnalités dans les plus brefs délais. ***Veuillez ne pas tenter d'ouvrir de tickets pendant cette période.***\n\n` +
-                `### ${EMOJIS.RULES} **CONSIGNES PENDANT LA MAINTENANCE**\n` +
-                `1. ${EMOJIS.BLURPLE_MOD} **Patience requis :** Merci de ne pas mentionner le staff en message privé.\n` +
-                `2. ${EMOJIS.HLRWIN} **Discussions textuelles :** Les salons de discussion généraux restent ouverts.\n` +
-                `3. ${EMOJIS.BLURPLE_BAN} **Sanctions :** Les abus d'ouvertures de ticket seront automatiquement bloqués.\n\n` +
-                `### ${EMOJIS.PREMIUM} **SOUTENIR LE PROJET**\n` +
-                `Pendant la durée des travaux, vous pouvez consulter nos informations officielles ou nous soutenir :\n` +
-                `* ${EMOJIS.HANDSHAKE} **Partenariats & Projets :** Consultez nos salons d'informations.\n` +
-                `* ${EMOJIS.MONEY} ${EMOJIS.PAYPAL} **Soutien :** Rendez-vous dans le salon dédié.\n\n` +
-                `- - -\n` +
-                `-# ${EMOJIS.CERTIFIED} Nous vous présenterons nos excuses pour la gêne occasionnée. Merci de votre confiance !`
-            )
-            .setColor(0xFFA500)
-            .setFooter({ 
-                text: "HeLoRiA System • Maintenance officielle", 
-                iconURL: client.user.displayAvatarURL() 
-            })
-            .setTimestamp();
-
-        // Envoi dans le salon avec notification @everyone
-        await message.channel.send({
-            content: "@everyone",
-            embeds: [mainEmbed, detailEmbed]
-        });
-
-        if (message.deletable) await message.delete().catch(() => {});
-    }
-
-    if (message.content === '!maintenance-off') {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-
-        isMaintenanceActive = false;
-
-        const endEmbed = new EmbedBuilder()
-            .setTitle(`${EMOJIS.HLRWIN} ${EMOJIS.CERTIFIED} FIN DE LA MAINTENANCE`)
-            .setDescription(
-                `# ${EMOJIS.CROWN} **TOUS LES SERVICES SONT DE NOUVEAU OPÉRATIONNELS !**\n\n` +
-                `> ${EMOJIS.UPDATE} **Remise en service :**\n` +
-                `* ${EMOJIS.TICKET} Le système de tickets est à nouveau **ouvert**.\n` +
-                `* ${EMOJIS.BRIEFCASE} Les recrutements joueurs sont **accessibles**.\n` +
-                `* ${EMOJIS.MIC} Les modules vocaux et d'auto-rôles fonctionnent **parfaitement**.\n\n` +
-                `-# Merci pour votre patience et bon jeu sur HeLoRiA !`
-            )
-            .setColor(0x00FF00)
-            .setTimestamp();
-
-        await message.channel.send({ embeds: [endEmbed] });
-    }
 });
 
 // =====================================================
