@@ -33,6 +33,7 @@ const voiceManager = require('./modules/voiceManager');
 const welcomeManager = require('./modules/welcomeManager');
 const roleManager = require('./modules/roleManager');
 const ticketSystem = require('./modules/ticketSystem');
+const autoMod = require('./modules/autoMod');
 
 // Chargement des modules Embeds / Salons d'information depuis le dossier ./embeds/
 const voiceInfo = require('./embeds/voiceInfo');
@@ -156,6 +157,7 @@ client.once('ready', async (c) => {
         if (typeof welcomeManager === 'function') welcomeManager(client);
         if (typeof roleManager === 'function') roleManager(client);
         if (typeof ticketSystem === 'function') ticketSystem(client);
+        if (typeof autoMod === 'function') autoMod(client);
     } catch (err) {
         console.error('❌ [MODULE ERROR] Erreur au chargement des modules :', err);
     }
