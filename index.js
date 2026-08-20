@@ -33,7 +33,7 @@ const voiceManager = require('./modules/voiceManager');
 const welcomeManager = require('./modules/welcomeManager');
 const roleManager = require('./modules/roleManager');
 const ticketSystem = require('./modules/ticketSystem');
-const autoMod = require('./modules/autoMod');
+const autoMod = require('./modules/autoMode');
 
 // Chargement des modules Embeds / Salons d'information depuis le dossier ./embeds/
 const voiceInfo = require('./embeds/voiceInfo');
