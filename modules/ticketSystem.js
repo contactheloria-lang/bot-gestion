@@ -378,4 +378,160 @@ module.exports = async (client) => {
 
             // FERMETURE & ACTIONS PRINCIPALES
             if (i.isButton() && ["claim", "close", "delete", "force_close_confirm", "cancel_close", "blacklist_user"].includes(i.customId)) {
-      
+                if (!isStaffUser && !["cancel_close"].includes(i.customId)) {
+                    if (!i.deferred && !i.replied) return await i.reply({ content: "Action refusée. Droits de modération requis.", ephemeral: true }).catch(() => {});
+                    return;
+                }
+
+                if (i.customId === "blacklist_user") {
+                    if (!context) {
+                        if (!i.deferred && !i.replied) return await i.reply({ content: "Impossible de cibler l'auteur.", ephemeral: true }).catch(() => {});
+                        return;
+                    }
+                    if (!i.deferred && !i.replied) await i.reply({ content: "Application de la blacklist...", ephemeral: true }).catch(() => {});
+
+                    if (!db.blacklist.includes(context.userId)) {
+                        db.blacklist.push(context.userId);
+                    }
+                    delete db.tickets[i.channel.id];
+                    writeDB(db);
+
+                    const logChannel = await i.guild.channels.fetch(LOGS_CHANNEL).catch(() => null);
+                    if (logChannel) {
+                        logChannel.send({ embeds: [new EmbedBuilder().setColor("#FFFFFF").setTitle("BLACKLIST SUPPORT").setDescription(`L'ID \`${context.userId}\` a été banni du système de support par ${i.user}.`)] }).catch(() => {});
+                    }
+
+                    setTimeout(() => i.channel.delete().catch(() => {}), 2000);
+                    return;
+                }
+
+                if (i.customId === "claim") {
+                    if (!i.deferred && !i.replied) await i.deferUpdate().catch(() => {});
+                    db.tickets[i.channel.id].claimedBy = i.user.id; 
+                    writeDB(db);
+
+                    await i.channel.setName(`prise-en-charge-${i.channel.name}`).catch(() => {});
+
+                    const updatedRow = ActionRowBuilder.from(i.message.components[0]);
+                    updatedRow.components[0] = new ButtonBuilder()
+                        .setCustomId("claimed")
+                        .setLabel(`Pris en charge par ${i.user.username}`)
+                        .setStyle(ButtonStyle.Success)
+                        .setDisabled(true);
+
+                    await i.message.edit({ components: [updatedRow, i.message.components[1]] }).catch(() => {});
+                    return await i.channel.send({ embeds: [new EmbedBuilder().setColor("#FFFFFF").setDescription(`**${i.user.username}** a pris en charge votre demande.`)] }).catch(() => {});
+                }
+
+                if (i.customId === "close") {
+                    if (!i.deferred && !i.replied) await i.deferUpdate().catch(() => {});
+                    const confirmEmbed = new EmbedBuilder().setColor("#FFFFFF").setDescription("Voulez-vous fermer ce ticket définitivement ? Un transcript sera généré.");
+                    const confirmRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId("force_close_confirm").setLabel("Confirmer la fermeture").setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder().setCustomId("cancel_close").setLabel("Annuler").setStyle(ButtonStyle.Secondary)
+                    );
+                    return await i.channel.send({ embeds: [confirmEmbed], components: [confirmRow] }).catch(() => {});
+                }
+
+                if (i.customId === "cancel_close") {
+                    if (!i.deferred && !i.replied) await i.deferUpdate().catch(() => {});
+                    await i.message.delete().catch(() => {});
+                    return await i.channel.send("Fermeture annulée.").catch(() => {});
+                }
+
+                if (i.customId === "force_close_confirm" || i.customId === "delete") {
+                    if (!i.deferred && !i.replied) await i.reply({ content: "Génération du transcript et suppression...", ephemeral: true }).catch(() => {});
+                    return await generateSystemClose(i.channel, client, context, i.user);
+                }
+            }
+        } catch (globalErr) {
+            console.error("❌ Erreur globale d'interaction dans ticketSystem :", globalErr);
+        }
+    });
+};
+
+// =====================================================
+// FONCTION DE FERMETURE & TRANSCRIPT
+// =====================================================
+async function generateSystemClose(channel, client, context, closedBy) {
+    try {
+        const guild = channel.guild;
+        const archiveChan = await guild.channels.fetch(ARCHIVE_CHANNEL).catch(() => null);
+
+        if (archiveChan) {
+            const messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+            let transcriptText = `--- TRANSCRIPT TICKET : ${channel.name} ---\n\n`;
+
+            if (messages) {
+                messages.reverse().forEach(m => {
+                    transcriptText += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`;
+                });
+            }
+
+            const buffer = Buffer.from(transcriptText, "utf-8");
+            const attachment = new AttachmentBuilder(buffer, { name: `transcript-${channel.name}.txt` });
+
+            await archiveChan.send({
+                content: `📁 **Transcript généré** pour le salon \`${channel.name}\` (Fermé par ${closedBy})`,
+                files: [attachment]
+            }).catch(() => {});
+        }
+
+        const db = readDB();
+        delete db.tickets[channel.id];
+        writeDB(db);
+
+        setTimeout(() => {
+            channel.delete().catch(() => {});
+        }, 2000);
+    } catch (err) {
+        console.error("❌ Erreur lors de la fermeture du ticket :", err);
+        channel.delete().catch(() => {});
+    }
+}
+
+// =====================================================
+// FORMULAIRES (COULEUR BLANCHE #FFFFFF)
+// =====================================================
+function getFormEmbed(type) {
+    const embed = new EmbedBuilder().setColor("#FFFFFF").setTimestamp();
+
+    if (type === "joueur") {
+        return embed.setTitle("Recrutement Joueur — Team HeLoRiA")
+            .setDescription("> Merci de répondre précisément aux questions ci-dessous.\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "Informations générales\n・Pseudo Epic Games :\n・Âge :\n・Plateforme :\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "Parcours compétitif\n・Power Ranking (PR) :\n・Anciennes structures :\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "Motivation\n・Vos ambitions :\n・Pourquoi rejoindre la Team HeLoRiA ?\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "Merci pour votre candidature.");
+    } else if (type === "staff") {
+        return embed.setTitle("Recrutement Staff — Team HeLoRiA")
+            .setDescription("> Merci de répondre précisément aux questions ci-dessous.\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "Informations générales\n・Pseudo Discord :\n・Âge :\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "Expérience & Motivation\n・Vos anciennes expériences :\n・Pourquoi la Team HeLoRiA ?\n・Vos compétences en modération :\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "Merci pour votre candidature.");
+    } else if (type === "audiovisuel") {
+        return embed.setTitle("Recrutement Audiovisuel — Team HeLoRiA")
+            .setDescription("> Merci de présenter votre portfolio ou vos réalisations ci-dessous.\n\n" +
+                "・Domaine (GFX, VFX, Monteur, Caster, Streamer) :\n" +
+                "・Lien vers votre portfolio / chaîne :\n" +
+                "・Logiciels utilisés :\n" +
+                "・Vos motivations :");
+    } else if (type === "partenariat") {
+        return embed.setTitle("Demande de Partenariat — Team HeLoRiA")
+            .setDescription("> Présentez votre projet ou votre serveur ci-dessous.\n\n" +
+                "・Nom du projet / serveur :\n" +
+                "・Lien permanent / Réseaux :\n" +
+                "・Nombre de membres :\n" +
+                "・Type de partenariat souhaité :");
+    } else {
+        return embed.setTitle("Assistance Générale — Team HeLoRiA")
+            .setDescription("> Veuillez décrire votre problème ou votre question le plus précisément possible afin qu'un modérateur puisse vous aider.");
+    }
+}
