@@ -15,15 +15,12 @@ const {
 const fs = require("fs");
 const path = require("path");
 
-// Charger la configuration JS (veillez à avoir un fichier config.json ou config.js correct)
-const config = require("../config.json"); 
+const config = require("../data/ticket_database.js");
 
-// IDS DES SALONS SYSTEME
 const LOGS_CHANNEL = "1535305443847577811";
 const ARCHIVE_CHANNEL = "1535305532620148736";
 const AVIS_CHANNEL = "1535305562714148935"; 
 
-// BASE DE DONNEES LOCALE
 const DB_PATH = path.join(__dirname, "../data/ticket_database.json");
 
 if (!fs.existsSync(path.dirname(DB_PATH))) fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -50,9 +47,7 @@ const globalCooldowns = new Set();
 module.exports = async (client) => {
     console.log("[TICKET SYSTEM] Chargement du système de support Team HeLoRiA...");
 
-    // =====================================================
     // 1. PANNEAU PRINCIPAL
-    // =====================================================
     try {
         if (config?.PANEL_CHANNEL) {
             const panelChannel = await client.channels.fetch(config.PANEL_CHANNEL).catch(() => null);
@@ -103,9 +98,7 @@ module.exports = async (client) => {
         console.error("[PANEL INIT ERROR] :", e);
     }
 
-    // =====================================================
-    // 2. COMMANDES STAFF & SUIVI D'ACTIVITÉ
-    // =====================================================
+    // 2. COMMANDES STAFF
     client.on("messageCreate", async (message) => {
         if (message.author.bot || !message.guild) return;
 
@@ -116,7 +109,6 @@ module.exports = async (client) => {
             writeDB(db);
         }
 
-        // Commande +test modérateur
         if (message.content.startsWith("+test modérateur")) {
             const allowedRoles = config?.ROLES?.staff || [];
             const isStaff = message.member.roles.cache.some(r => allowedRoles.includes(r.id)) || message.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
@@ -133,14 +125,13 @@ module.exports = async (client) => {
             return message.reply({ embeds: [new EmbedBuilder().setColor("#FFFFFF").setTitle("ÉVALUATION STAFF").setDescription(`Bienvenue ${targetUser} dans votre salon de test.`)] }).catch(() => {});
         }
 
-        // Commande +unblacklist <ID>
         if (message.content.startsWith("+unblacklist")) {
             const isStaff = message.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
             if (!isStaff) return message.reply("Permission insuffisante.").catch(() => {});
 
             const args = message.content.split(" ");
             const targetId = args[1];
-            if (!targetId) return message.reply("Veuillez indiquer l'ID de l'utilisateur à déban du support. Ex: `+unblacklist 123456789`").catch(() => {});
+            if (!targetId) return message.reply("Veuillez indiquer l'ID de l'utilisateur. Ex: `+unblacklist 123456789`").catch(() => {});
 
             if (!db.blacklist.includes(targetId)) {
                 return message.reply("Cet utilisateur n'est pas dans la liste noire.").catch(() => {});
@@ -151,7 +142,6 @@ module.exports = async (client) => {
             return message.reply(`✅ L'utilisateur <@${targetId}> (\`${targetId}\`) a été débanni du système de support.`).catch(() => {});
         }
 
-        // Commande +blacklist <ID>
         if (message.content.startsWith("+blacklist")) {
             const isStaff = message.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
             if (!isStaff) return message.reply("Permission insuffisante.").catch(() => {});
@@ -168,9 +158,7 @@ module.exports = async (client) => {
         }
     });
 
-    // =====================================================
-    // 3. GESTION DES INTERACTIONS
-    // =====================================================
+    // 3. INTERACTIONS
     client.on("interactionCreate", async (i) => {
         try {
             // AVIS EN MP
@@ -180,7 +168,7 @@ module.exports = async (client) => {
                 if (i.isButton() && i.customId.startsWith("rate_")) {
                     const parts = i.customId.split("_");
                     const stars = parts[1];
-                    const staffId = parts[2];
+                    const staffId = parts[2] || "none";
 
                     const modal = new ModalBuilder()
                         .setCustomId(`submit_review_${stars}_${staffId}`)
@@ -195,24 +183,25 @@ module.exports = async (client) => {
                 if (i.isModalSubmit() && i.customId.startsWith("submit_review_")) {
                     await i.deferReply({ ephemeral: true }).catch(() => {});
                     const parts = i.customId.split("_");
-                    const stars = parseInt(parts[2]);
-                    const staffId = parts[3];
-                    const comment = i.fields.getTextInputValue("comment");
+                    const stars = parseInt(parts[2]) || 5;
+                    const staffId = parts[3] !== "none" ? parts[3] : "Non assigné";
 
                     const reviewEmbed = new EmbedBuilder()
                         .setColor("#FFFFFF")
                         .setTitle("Nouvel Avis Support — Team HeLoRiA")
                         .addFields(
-                            { name: "Staff Évalué", value: `<@${staffId}> (\`${staffId}\`)`, inline: true },
+                            { name: "Staff Évalué", value: staffId !== "Non assigné" ? `<@${staffId}> (\`${staffId}\`)` : "Aucun", inline: true },
                             { name: "Note globale", value: `${stars}/5`, inline: true },
                             { name: "Auteur", value: `${i.user} (\`${i.user.id}\`)`, inline: false },
-                            { name: "Commentaire", value: comment }
+                            { name: "Commentaire", value: i.fields.getTextInputValue("comment") }
                         )
                         .setTimestamp();
 
-                    if (!db.stats[staffId]) db.stats[staffId] = { closedTickets: 0, reviews: [] };
-                    db.stats[staffId].reviews.push(stars);
-                    writeDB(db);
+                    if (staffId !== "Non assigné") {
+                        if (!db.stats[staffId]) db.stats[staffId] = { closedTickets: 0, reviews: [] };
+                        db.stats[staffId].reviews.push(stars);
+                        writeDB(db);
+                    }
 
                     const guildInstance = client.guilds.cache.first();
                     if (guildInstance) {
@@ -225,7 +214,7 @@ module.exports = async (client) => {
                 return;
             }
 
-            // ANTI-SPAM BOUTONS
+            // ANTI-SPAM
             if (i.isButton() || i.isStringSelectMenu()) {
                 const cooldownKey = `${i.user.id}-${i.customId}`;
                 if (globalCooldowns.has(cooldownKey)) {
@@ -238,7 +227,7 @@ module.exports = async (client) => {
                 setTimeout(() => globalCooldowns.delete(cooldownKey), 1200);
             }
 
-            // OUVERTURE DU TICKET
+            // OUVERTURE TICKET
             if (i.isStringSelectMenu() && i.customId === "ticket_select") {
                 if (!i.deferred && !i.replied) await i.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -319,7 +308,7 @@ module.exports = async (client) => {
                 ? ((config?.ROLES ? config.ROLES[context.type] : []) || []).some(rId => i.member.roles.cache.has(rId)) || i.member.permissions.has(PermissionsBitField.Flags.ManageChannels) 
                 : i.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
 
-            // GESTION FIL PRIVE STAFF & UTILS
+            // FIL PRIVE STAFF & UTILS
             if (i.isButton() && ["ticket_add_user", "ticket_remove_user", "ticket_create_voice", "ticket_staff_thread"].includes(i.customId)) {
                 if (!isStaffUser) {
                     if (!i.deferred && !i.replied) return await i.reply({ content: "Action réservée aux modérateurs.", ephemeral: true }).catch(() => {});
@@ -411,8 +400,10 @@ module.exports = async (client) => {
 
                 if (i.customId === "claim") {
                     if (!i.deferred && !i.replied) await i.deferUpdate().catch(() => {});
-                    db.tickets[i.channel.id].claimedBy = i.user.id; 
-                    writeDB(db);
+                    if (db.tickets[i.channel.id]) {
+                        db.tickets[i.channel.id].claimedBy = i.user.id; 
+                        writeDB(db);
+                    }
 
                     await i.channel.setName(`prise-en-charge-${i.channel.name}`).catch(() => {});
 
@@ -454,9 +445,6 @@ module.exports = async (client) => {
     });
 };
 
-// =====================================================
-// FONCTION DE FERMETURE & TRANSCRIPT
-// =====================================================
 async function generateSystemClose(channel, client, context, closedBy) {
     try {
         const guild = channel.guild;
@@ -494,9 +482,6 @@ async function generateSystemClose(channel, client, context, closedBy) {
     }
 }
 
-// =====================================================
-// FORMULAIRES (COULEUR BLANCHE #FFFFFF)
-// =====================================================
 function getFormEmbed(type) {
     const embed = new EmbedBuilder().setColor("#FFFFFF").setTimestamp();
 
