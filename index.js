@@ -2,6 +2,19 @@ const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.j
 const express = require('express');
 require('dotenv').config();
 
+// 1. DÉMARRAGE IMMÉDIAT DU SERVEUR WEB (Pour satisfaire Render instantanément)
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+app.get('/', (req, res) => {
+    res.send('⚙️ Le système de gestion HeLoRiA est pleinement opérationnel.');
+});
+
+app.listen(PORT, () => {
+    console.log(`🌐 [Serveur Web] Écoute active sur le port ${PORT}`);
+});
+
+// 2. CONFIGURATION DU CLIENT DISCORD
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -17,7 +30,7 @@ const client = new Client({
     ]
 });
 
-// Importation sécurisée des 5 modules
+// Liste des 5 modules
 const modules = [
     { name: 'AutoMode', path: './modules/autoMode' },
     { name: 'RoleManager', path: './modules/roleManager' },
@@ -31,7 +44,7 @@ client.once('ready', async (c) => {
     console.log(`✅ [HELORIA GESTION] Connecté sous : ${c.user.tag}`);
     console.log(`==========================================\n`);
 
-    // 1. Passage du statut en ligne IMMÉDIATEMENT
+    // Application du statut
     try {
         client.user.setPresence({
             status: 'online',
@@ -41,10 +54,10 @@ client.once('ready', async (c) => {
             }]
         });
     } catch (err) {
-        console.error("⚠️ Erreur Presence :", err.message);
+        console.error("⚠️ Erreur Présence :", err.message);
     }
 
-    // 2. Chargement individuel des 5 modules
+    // Chargement sécurisé des 5 modules (un crash dans un module ne coupe PLUS le bot)
     for (const mod of modules) {
         try {
             const initFn = require(mod.path);
@@ -52,7 +65,7 @@ client.once('ready', async (c) => {
                 await initFn(client);
                 console.log(`✅ Module chargé : ${mod.name}`);
             } else {
-                console.log(`⚠️ Module ${mod.name} ne renvoie pas une fonction d'initialisation.`);
+                console.log(`⚠️ Module ${mod.name} ne renvoie pas une fonction.`);
             }
         } catch (err) {
             console.error(`❌ Erreur lors du chargement de ${mod.name} :`, err.message);
@@ -60,18 +73,7 @@ client.once('ready', async (c) => {
     }
 });
 
-// Serveur Web Express pour Render
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-    res.send('⚙️ Le système de gestion HeLoRiA est pleinement opérationnel.');
-});
-
-app.listen(PORT, () => {
-    console.log(`🌐 [Serveur Web] Écoute active sur le port ${PORT}`);
-});
-
+// Anti-crash global
 process.on('unhandledRejection', (reason) => {
     console.error('⚠️ [Anti-Crash] Rejet non géré :', reason);
 });
@@ -80,11 +82,11 @@ process.on('uncaughtException', (err) => {
     console.error('⚠️ [Anti-Crash] Exception non capturée :', err);
 });
 
-// Connexion Discord avec log de diagnostic
+// Connexion Discord
 if (!process.env.DISCORD_TOKEN) {
-    console.error("❌ ERREUR : La variable DISCORD_TOKEN est absente de Render !");
+    console.error("❌ ERREUR FATALE : Variable DISCORD_TOKEN introuvable sur Render !");
 } else {
-    console.log("🔑 Token trouvé. Connexion à Discord...");
+    console.log("🔑 Token détecté. Connexion à Discord en cours...");
     client.login(process.env.DISCORD_TOKEN).catch(err => {
         console.error("❌ ÉCHEC CONNEXION DISCORD :", err.message);
     });
