@@ -14,7 +14,9 @@ const {
 
 const fs = require("fs");
 const path = require("path");
-const config = require("../data/ticket_database");
+
+// Charger la configuration JS (veillez à avoir un fichier config.json ou config.js correct)
+const config = require("../config.json"); 
 
 // IDS DES SALONS SYSTEME
 const LOGS_CHANNEL = "1535305443847577811";
@@ -52,48 +54,50 @@ module.exports = async (client) => {
     // 1. PANNEAU PRINCIPAL
     // =====================================================
     try {
-        const panelChannel = await client.channels.fetch(config.PANEL_CHANNEL).catch(() => null);
-        if (panelChannel) {
-            const cachedMessages = await panelChannel.messages.fetch({ limit: 10 }).catch(() => null);
-            if (cachedMessages) {
-                const botMessages = cachedMessages.filter(m => m.author.id === client.user.id);
-                for (const msg of botMessages.values()) await msg.delete().catch(() => {});
+        if (config?.PANEL_CHANNEL) {
+            const panelChannel = await client.channels.fetch(config.PANEL_CHANNEL).catch(() => null);
+            if (panelChannel) {
+                const cachedMessages = await panelChannel.messages.fetch({ limit: 10 }).catch(() => null);
+                if (cachedMessages) {
+                    const botMessages = cachedMessages.filter(m => m.author.id === client.user.id);
+                    for (const msg of botMessages.values()) await msg.delete().catch(() => {});
+                }
+
+                const panelEmbed = new EmbedBuilder()
+                    .setColor("#FFFFFF")
+                    .setTitle("Team HeLoRiA — Centre d'Assistance")
+                    .setDescription(
+                        "Besoin d'aide ou envie de tenter votre chance pour rejoindre la Team HeLoRiA ?\n" +
+                        "Notre équipe vous répondra dans les plus brefs délais.\n\n" +
+                        "Merci de préciser toutes les informations nécessaires lors de l'ouverture du ticket.\n\n" +
+                        "Les tickets inutiles ou abusifs seront sanctionnés.\n" +
+                        "Vous disposerez de 24 heures maximum pour répondre, sous peine de fermeture du ticket.\n\n" +
+                        "Les règles du serveur s'appliquent également dans ces salons privés. Merci de rester respectueux et courtois avec l'ensemble du Staff.\n\n" +
+                        "───\n\n" +
+                        "Need assistance or want to join Team HeLoRiA?\n" +
+                        "Our team will get back to you shortly.\n\n" +
+                        "Please provide all relevant information once your ticket is opened.\n\n" +
+                        "Useless or abusive tickets will be sanctioned.\n" +
+                        "You will have a maximum of 24 hours to reply, otherwise your ticket will be closed."
+                    )
+                    .setFooter({ text: "Team HeLoRiA • Sélectionnez une option ci-dessous" });
+
+                const menuSelection = new StringSelectMenuBuilder()
+                    .setCustomId("ticket_select")
+                    .setPlaceholder("Sélectionnez votre catégorie...")
+                    .addOptions([
+                        { label: "Recrutement Staff", value: "staff" },
+                        { label: "Recrutement Joueur", value: "joueur" },
+                        { label: "Recrutement Audiovisuel", value: "audiovisuel" },
+                        { label: "Assistance Générale", value: "aide" },
+                        { label: "Demande de Partenariat", value: "partenariat" }
+                    ]);
+
+                await panelChannel.send({
+                    embeds: [panelEmbed],
+                    components: [new ActionRowBuilder().addComponents(menuSelection)]
+                }).catch(() => {});
             }
-
-            const panelEmbed = new EmbedBuilder()
-                .setColor("#FFFFFF")
-                .setTitle("Team HeLoRiA — Centre d'Assistance")
-                .setDescription(
-                    "Besoin d'aide ou envie de tenter votre chance pour rejoindre la Team HeLoRiA ?\n" +
-                    "Notre équipe vous répondra dans les plus brefs délais.\n\n" +
-                    "Merci de préciser toutes les informations nécessaires lors de l'ouverture du ticket.\n\n" +
-                    "Les tickets inutiles ou abusifs seront sanctionnés.\n" +
-                    "Vous disposerez de 24 heures maximum pour répondre, sous peine de fermeture du ticket.\n\n" +
-                    "Les règles du serveur s'appliquent également dans ces salons privés. Merci de rester respectueux et courtois avec l'ensemble du Staff.\n\n" +
-                    "───\n\n" +
-                    "Need assistance or want to join Team HeLoRiA?\n" +
-                    "Our team will get back to you shortly.\n\n" +
-                    "Please provide all relevant information once your ticket is opened.\n\n" +
-                    "Useless or abusive tickets will be sanctioned.\n" +
-                    "You will have a maximum of 24 hours to reply, otherwise your ticket will be closed."
-                )
-                .setFooter({ text: "Team HeLoRiA • Sélectionnez une option ci-dessous" });
-
-            const menuSelection = new StringSelectMenuBuilder()
-                .setCustomId("ticket_select")
-                .setPlaceholder("Sélectionnez votre catégorie...")
-                .addOptions([
-                    { label: "Recrutement Staff", value: "staff" },
-                    { label: "Recrutement Joueur", value: "joueur" },
-                    { label: "Recrutement Audiovisuel", value: "audiovisuel" },
-                    { label: "Assistance Générale", value: "aide" },
-                    { label: "Demande de Partenariat", value: "partenariat" }
-                ]);
-
-            await panelChannel.send({
-                embeds: [panelEmbed],
-                components: [new ActionRowBuilder().addComponents(menuSelection)]
-            }).catch(() => {});
         }
     } catch (e) {
         console.error("[PANEL INIT ERROR] :", e);
@@ -114,14 +118,14 @@ module.exports = async (client) => {
 
         // Commande +test modérateur
         if (message.content.startsWith("+test modérateur")) {
-            const allowedRoles = config.ROLES.staff || [];
+            const allowedRoles = config?.ROLES?.staff || [];
             const isStaff = message.member.roles.cache.some(r => allowedRoles.includes(r.id)) || message.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
             if (!isStaff) return message.reply("Action réservée à la direction.").catch(() => {});
 
             const targetUser = message.mentions.members.first();
             if (!targetUser) return message.reply("Veuillez mentionner le modérateur en test.").catch(() => {});
 
-            if (config.TEST_MODO_ROLE) {
+            if (config?.TEST_MODO_ROLE) {
                 await targetUser.roles.add(config.TEST_MODO_ROLE).catch(() => {});
             }
             await message.channel.permissionOverwrites.edit(targetUser.id, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true }).catch(() => {});
@@ -246,13 +250,13 @@ module.exports = async (client) => {
                 }
 
                 try {
-                    const categoryId = config.CATEGORIES[type];
+                    const categoryId = config?.CATEGORIES ? config.CATEGORIES[type] : null;
                     const basePermissions = [
                         { id: i.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                         { id: i.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                     ];
 
-                    (config.ROLES[type] || []).forEach(rId => {
+                    ((config?.ROLES ? config.ROLES[type] : []) || []).forEach(rId => {
                         basePermissions.push({ 
                             id: rId, 
                             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] 
@@ -312,7 +316,7 @@ module.exports = async (client) => {
             const context = db.tickets[i.channel.id];
 
             const isStaffUser = context 
-                ? (config.ROLES[context.type] || []).some(rId => i.member.roles.cache.has(rId)) || i.member.permissions.has(PermissionsBitField.Flags.ManageChannels) 
+                ? ((config?.ROLES ? config.ROLES[context.type] : []) || []).some(rId => i.member.roles.cache.has(rId)) || i.member.permissions.has(PermissionsBitField.Flags.ManageChannels) 
                 : i.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
 
             // GESTION FIL PRIVE STAFF & UTILS
