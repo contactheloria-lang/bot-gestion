@@ -17,34 +17,50 @@ const client = new Client({
     ]
 });
 
-// Importation des modules
-const initTicketSystem = require('./modules/ticketSystem');
-const initVoiceManager = require('./modules/voiceManager');
-// const initEmbedModule = require('./modules/embedModule'); // DÉSACTIVÉ : Ne pas renvoyer d'embeds via ce module
+// Importation sécurisée des 5 modules
+const modules = [
+    { name: 'AutoMode', path: './modules/autoMode' },
+    { name: 'RoleManager', path: './modules/roleManager' },
+    { name: 'TicketSystem', path: './modules/ticketSystem' },
+    { name: 'VoiceManager', path: './modules/voiceManager' },
+    { name: 'WelcomeManager', path: './modules/welcomeManager' }
+];
 
 client.once('ready', async (c) => {
     console.log(`\n==========================================`);
     console.log(`✅ [HELORIA GESTION] Connecté sous : ${c.user.tag}`);
-    console.log(`⚙️  Modules actifs : Tickets, Vocaux`);
-    console.log(`🚫 Module désactivé : Embeds`);
     console.log(`==========================================\n`);
 
-    // Initialisation des modules
-    await initTicketSystem(client);
-    if (typeof initVoiceManager === 'function') initVoiceManager(client);
-
-    client.user.setPresence({
-        status: 'online',
-        activities: [
-            {
+    // 1. Passage du statut en ligne IMMÉDIATEMENT
+    try {
+        client.user.setPresence({
+            status: 'online',
+            activities: [{
                 name: '⚙️ Gestion & Support | Team HeLoRiA',
-                type: ActivityType.Custom
+                type: ActivityType.Playing
+            }]
+        });
+    } catch (err) {
+        console.error("⚠️ Erreur Presence :", err.message);
+    }
+
+    // 2. Chargement individuel des 5 modules
+    for (const mod of modules) {
+        try {
+            const initFn = require(mod.path);
+            if (typeof initFn === 'function') {
+                await initFn(client);
+                console.log(`✅ Module chargé : ${mod.name}`);
+            } else {
+                console.log(`⚠️ Module ${mod.name} ne renvoie pas une fonction d'initialisation.`);
             }
-        ]
-    });
+        } catch (err) {
+            console.error(`❌ Erreur lors du chargement de ${mod.name} :`, err.message);
+        }
+    }
 });
 
-// Serveur Web Express (Maintient le bot éveillé)
+// Serveur Web Express pour Render
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -64,4 +80,12 @@ process.on('uncaughtException', (err) => {
     console.error('⚠️ [Anti-Crash] Exception non capturée :', err);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// Connexion Discord avec log de diagnostic
+if (!process.env.DISCORD_TOKEN) {
+    console.error("❌ ERREUR : La variable DISCORD_TOKEN est absente de Render !");
+} else {
+    console.log("🔑 Token trouvé. Connexion à Discord...");
+    client.login(process.env.DISCORD_TOKEN).catch(err => {
+        console.error("❌ ÉCHEC CONNEXION DISCORD :", err.message);
+    });
+}
