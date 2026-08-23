@@ -16,11 +16,9 @@ const path = require("path");
 
 const config = require("../data/voiceConfig");
 
-// Charte graphique & Couleurs HeLoRiA
 const COLOR_GOLD = "#D4AF37";
 const COLOR_BLACK = "#000001";
 
-// Emojis du système vocal (Personnalisés HeLoRiA)
 const EMOJIS = {
     VOICE: "<:68052micanimation:1537582247278813204>",
     CROWN: "<a:darkbluecrown:1533535362566324245>",
@@ -42,11 +40,9 @@ const EMOJIS = {
     CLOCK: "<a:loadingicon:1533535386951749683>"
 };
 
-// Registres en mémoire RAM
 const tempChannels = new Map();
 let voiceEventsRegistered = false;
 
-// Stockage sécurisé JSON
 const DB_PATH = path.join(__dirname, "../data/voice_database.json");
 if (!fs.existsSync(path.dirname(DB_PATH))) fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, JSON.stringify({ savedConfigs: {}, whitelists: {} }, null, 4));
@@ -55,7 +51,7 @@ function readDB() {
     try {
         return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
     } catch (err) {
-        console.error("[VOICE DB] Fichier corrompu, réinitialisation de secours.", err);
+        console.error("[VOICE DB] Fichier corrompu, réinitialisation.", err);
         return { savedConfigs: {}, whitelists: {} };
     }
 }
@@ -77,7 +73,6 @@ module.exports = (client) => {
         return config.STAFF_ROLES.some(roleId => member.roles.cache.has(roleId));
     };
 
-    // Générateur d'Embed de Dashboard dynamique
     const createDashboardEmbed = (member, channel, data) => {
         let statusText = `${EMOJIS.UNLOCK} **Public**`;
         if (data.isLocked) statusText = `${EMOJIS.LOCK} **Verrouillé**`;
@@ -102,7 +97,6 @@ module.exports = (client) => {
             .setTimestamp();
     };
 
-    // Mise à jour de l'Embed principal du salon
     const updateDashboard = async (channel, member, data) => {
         try {
             if (!data.dashboardMessageId) return;
@@ -115,7 +109,6 @@ module.exports = (client) => {
         }
     };
 
-    // Purge de démarrage
     const runGarbageCollector = async (guild) => {
         const category = await guild.channels.fetch(config.TEMP_CATEGORY).catch(() => null);
         let deletedCount = 0;
@@ -141,7 +134,6 @@ module.exports = (client) => {
     if (voiceEventsRegistered) return;
     voiceEventsRegistered = true;
 
-    // Commandes texte de maintenance
     client.on("messageCreate", async (msg) => {
         if (!msg.guild || msg.author.bot) return;
 
@@ -171,13 +163,11 @@ module.exports = (client) => {
         }
     });
 
-    // Création & Suppression automatique des salons
     client.on("voiceStateUpdate", async (oldState, newState) => {
         try {
             const member = newState.member;
             if (!member || member.user.bot) return;
 
-            // Déclenchement Création
             if (newState.channelId === config.TRIGGER_CHANNEL) {
                 const guild = member.guild;
                 const db = readDB();
@@ -188,8 +178,7 @@ module.exports = (client) => {
                 const activity = member.presence?.activities?.find(a => a.type === 0);
                 if (activity) detectedGame = activity.name;
 
-                let channelName = detectedGame ? `🎮 ${detectedGame}` : `🎙️ Salon de ${member.user.username}`;
-                if (userTemplate?.name) channelName = userTemplate.name;
+                let channelName = userTemplate?.name || (detectedGame ? `🎮 ${detectedGame}` : `🎙️ Salon de ${member.user.username}`);
 
                 let contextPermissions = [
                     {
@@ -209,8 +198,8 @@ module.exports = (client) => {
                     {
                         id: member.id,
                         allow: [
-                            PermissionsBitField.Flags.ViewChannel, 
-                            PermissionsBitField.Flags.Connect, 
+                            PermissionsBitField.Flags.ViewChannel,
+                            PermissionsBitField.Flags.Connect,
                             PermissionsBitField.Flags.Speak,
                             PermissionsBitField.Flags.SendMessages,
                             PermissionsBitField.Flags.MuteMembers
@@ -225,12 +214,8 @@ module.exports = (client) => {
                     });
                 });
 
-                if (userTemplate?.isLocked) {
-                    contextPermissions[0].deny = [PermissionsBitField.Flags.Connect];
-                }
-                if (userTemplate?.isPrivate) {
-                    contextPermissions[0].deny = [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.Connect];
-                }
+                if (userTemplate?.isLocked) contextPermissions[0].deny = [PermissionsBitField.Flags.Connect];
+                if (userTemplate?.isPrivate) contextPermissions[0].deny = [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.Connect];
 
                 const targetChannel = await guild.channels.create({
                     name: channelName,
@@ -253,13 +238,9 @@ module.exports = (client) => {
 
                 tempChannels.set(targetChannel.id, runtimeData);
 
-                // Déplace le joueur dans le salon créé
-                await member.voice.setChannel(targetChannel).catch(err => console.error("[VOICE] Erreur move membre :", err));
-
-                // Temporisation de synchronisation API Discord
+                await member.voice.setChannel(targetChannel).catch(err => console.error("[VOICE] Erreur déplacement membre :", err));
                 await new Promise(resolve => setTimeout(resolve, 500));
 
-                // Composants UI avec vos émojis personnalisés
                 const row1 = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId("vc_open").setLabel("Ouvrir").setEmoji(EMOJIS.UNLOCK).setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder().setCustomId("vc_lock").setLabel("Verrouiller").setEmoji(EMOJIS.LOCK).setStyle(ButtonStyle.Secondary),
@@ -294,7 +275,6 @@ module.exports = (client) => {
                         ])
                 );
 
-                // Envoi du Dashboard
                 try {
                     const dashboardMsg = await targetChannel.send({
                         content: `Bienvenue dans ton salon ${member} !`,
@@ -307,15 +287,13 @@ module.exports = (client) => {
                         tempChannels.set(targetChannel.id, runtimeData);
                     }
                 } catch (sendError) {
-                    console.error("[VOICE] Impossible d'envoyer le message de dashboard dans le salon vocal :", sendError);
+                    console.error("[VOICE] Impossible d'envoyer le message de dashboard :", sendError);
                 }
             }
 
-            // Suivi des membres uniques & Nettoyage à la fermeture
             const currentVoice = newState.channel;
             if (currentVoice && tempChannels.has(currentVoice.id)) {
-                const data = tempChannels.get(currentVoice.id);
-                data.uniqueMembers.add(member.id);
+                tempChannels.get(currentVoice.id).uniqueMembers.add(member.id);
             }
 
             const expiredChannel = oldState.channel;
@@ -324,10 +302,9 @@ module.exports = (client) => {
                     const instance = await expiredChannel.fetch().catch(() => null);
                     if (!instance || instance.members.size === 0) {
                         const data = tempChannels.get(expiredChannel.id);
-                        
                         const durationMinutes = Math.round((Date.now() - (data?.createdAt || Date.now())) / 60000);
                         const logChan = await expiredChannel.guild.channels.fetch(config.LOGS_CHANNEL).catch(() => null);
-                        
+
                         if (logChan && data) {
                             const statsEmbed = new EmbedBuilder()
                                 .setColor(COLOR_BLACK)
@@ -342,7 +319,7 @@ module.exports = (client) => {
                         }
 
                         tempChannels.delete(expiredChannel.id);
-                        await instance.delete().catch(() => {});
+                        await instance?.delete().catch(() => {});
                     }
                 }, 2000);
             }
@@ -352,7 +329,6 @@ module.exports = (client) => {
         }
     });
 
-    // Traitement des interactions du Dashboard
     client.on("interactionCreate", async (interaction) => {
         try {
             const activeVoice = interaction.channel;
@@ -360,7 +336,6 @@ module.exports = (client) => {
 
             const runtimeData = tempChannels.get(activeVoice.id);
 
-            // Action : Réclamer la propriété
             if (interaction.isButton() && interaction.customId === "vc_claim") {
                 await interaction.deferReply({ ephemeral: true });
                 const currentOwner = activeVoice.members.get(runtimeData.owner);
@@ -376,14 +351,10 @@ module.exports = (client) => {
                 return interaction.editReply({ content: `${EMOJIS.CROWN} Vous êtes désormais le nouveau propriétaire du salon !` });
             }
 
-            // Vérification des accès d'administration
-            if (interaction.isButton() || interaction.isUserSelectMenu() || interaction.isModalSubmit() || interaction.isStringSelectMenu()) {
-                if (runtimeData.owner !== interaction.user.id) {
-                    return interaction.reply({ content: `${EMOJIS.WARN} Seul le propriétaire du salon vocal peut utiliser ces commandes.`, ephemeral: true });
-                }
+            if (runtimeData.owner !== interaction.user.id) {
+                return interaction.reply({ content: `${EMOJIS.WARN} Seul le propriétaire du salon vocal peut utiliser ces commandes.`, ephemeral: true });
             }
 
-            // Gestion des Boutons
             if (interaction.isButton()) {
                 switch (interaction.customId) {
                     case "vc_open":
@@ -414,12 +385,12 @@ module.exports = (client) => {
                     case "vc_mute_member":
                     case "vc_transfer":
                     case "vc_save_whitelist":
-                        const selectMenu = new UserSelectMenuBuilder().setCustomId(`user_${interaction.customId}`).setPlaceholder("👤 Sélectionnez un membre dans la liste...");
+                        const selectMenu = new UserSelectMenuBuilder().setCustomId(`user_${interaction.customId}`).setPlaceholder("👤 Sélectionnez un membre...");
                         return interaction.reply({ components: [new ActionRowBuilder().addComponents(selectMenu)], ephemeral: true });
 
                     case "vc_rename":
                         const modal = new ModalBuilder().setCustomId("vc_modal_rename").setTitle("Renommer le salon");
-                        const input = new TextInputBuilder().setCustomId("new_name").setLabel("Nouveau nom du salon").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32);
+                        const input = new TextInputBuilder().setCustomId("new_name").setLabel("Nouveau nom").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32);
                         return interaction.showModal(modal.addComponents(new ActionRowBuilder().addComponents(input)));
 
                     case "vc_bitrate":
@@ -451,7 +422,6 @@ module.exports = (client) => {
                 }
             }
 
-            // Gestion des Menus Utilisateurs
             if (interaction.isUserSelectMenu()) {
                 await interaction.deferReply({ ephemeral: true });
                 const selectedUser = interaction.users.first();
@@ -459,7 +429,7 @@ module.exports = (client) => {
 
                 if (interaction.customId === "user_vc_permit") {
                     await activeVoice.permissionOverwrites.edit(selectedUser.id, { Connect: true, ViewChannel: true });
-                    return interaction.editReply({ content: `${EMOJIS.CHECK} ${selectedUser} est désormais autorisé à rejoindre ce salon.` });
+                    return interaction.editReply({ content: `${EMOJIS.CHECK} ${selectedUser} peut maintenant rejoindre le salon.` });
                 }
 
                 if (interaction.customId === "user_vc_reject") {
@@ -476,9 +446,9 @@ module.exports = (client) => {
                     if (targetMember?.voice.channelId === activeVoice.id) {
                         const isMuted = targetMember.voice.serverMute;
                         await targetMember.voice.setMute(!isMuted).catch(() => {});
-                        return interaction.editReply({ content: `${EMOJIS.CHECK} Le statut micro de ${selectedUser} a été ajusté.` });
+                        return interaction.editReply({ content: `${EMOJIS.CHECK} Le statut micro de ${selectedUser} a été modifié.` });
                     }
-                    return interaction.editReply({ content: `${EMOJIS.WARN} Ce membre n'est pas présent dans ce salon vocal.` });
+                    return interaction.editReply({ content: `${EMOJIS.WARN} Ce membre n'est pas dans le salon.` });
                 }
 
                 if (interaction.customId === "user_vc_save_whitelist") {
@@ -489,9 +459,9 @@ module.exports = (client) => {
                     if (!db.whitelists[interaction.user.id].includes(selectedUser.id)) {
                         db.whitelists[interaction.user.id].push(selectedUser.id);
                         writeDB(db);
-                        return interaction.editReply({ content: `${EMOJIS.CHECK} ${selectedUser} a été ajouté à votre Whitelist permanente.` });
+                        return interaction.editReply({ content: `${EMOJIS.CHECK} ${selectedUser} a été ajouté à votre Whitelist.` });
                     }
-                    return interaction.editReply({ content: `${EMOJIS.WARN} Ce membre est déjà dans votre Whitelist.` });
+                    return interaction.editReply({ content: `${EMOJIS.WARN} Ce membre est déjà présent dans la Whitelist.` });
                 }
 
                 if (interaction.customId === "user_vc_transfer") {
@@ -499,11 +469,10 @@ module.exports = (client) => {
                     tempChannels.set(activeVoice.id, runtimeData);
                     const newOwnerMember = await interaction.guild.members.fetch(selectedUser.id).catch(() => null);
                     if (newOwnerMember) await updateDashboard(activeVoice, newOwnerMember, runtimeData);
-                    return interaction.editReply({ content: `${EMOJIS.CROWN} La propriété du salon a été transférée à ${selectedUser}.` });
+                    return interaction.editReply({ content: `${EMOJIS.CROWN} Propriété transférée à ${selectedUser}.` });
                 }
             }
 
-            // Limite de Places
             if (interaction.isStringSelectMenu() && interaction.customId === "vc_limit_select") {
                 await interaction.deferReply({ ephemeral: true });
                 const limit = parseInt(interaction.values[0]);
@@ -512,29 +481,27 @@ module.exports = (client) => {
 
                 await activeVoice.setUserLimit(limit).catch(() => {});
                 await updateDashboard(activeVoice, interaction.member, runtimeData);
-                return interaction.editReply({ content: `${EMOJIS.CHECK} Capacité du salon mise à jour avec succès.` });
+                return interaction.editReply({ content: `${EMOJIS.CHECK} Capacité modifiée.` });
             }
 
-            // Réglage du Bitrate
             if (interaction.isStringSelectMenu() && interaction.customId === "vc_select_bitrate") {
                 await interaction.deferReply({ ephemeral: true });
                 const bitrate = parseInt(interaction.values[0]);
                 await activeVoice.setBitrate(bitrate).catch(() => {});
-                return interaction.editReply({ content: `${EMOJIS.BITRATE} Qualité audio modifiée avec succès (\`${bitrate / 1000} kbps\`).` });
+                return interaction.editReply({ content: `${EMOJIS.BITRATE} Qualité audio ajustée à \`${bitrate / 1000} kbps\`.` });
             }
 
-            // Modal Renommer
             if (interaction.isModalSubmit() && interaction.customId === "vc_modal_rename") {
                 await interaction.deferReply({ ephemeral: true });
                 const newName = interaction.fields.getTextInputValue("new_name");
                 
                 await activeVoice.setName(newName).catch(() => {});
                 await updateDashboard(activeVoice, interaction.member, runtimeData);
-                return interaction.editReply({ content: `${EMOJIS.CHECK} Salon renommé avec succès : **${newName}**` });
+                return interaction.editReply({ content: `${EMOJIS.CHECK} Salon renommé : **${newName}**` });
             }
 
         } catch (error) {
-            console.error("[VOICE SYSTEM] Erreur interaction :", error);
+            console.error("[VOICE SYSTEM] Erreur d'interaction :", error);
         }
     });
 };
