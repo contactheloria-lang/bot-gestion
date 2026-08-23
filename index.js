@@ -1,8 +1,8 @@
-const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, ActivityType, MessageFlags } = require('discord.js');
 const express = require('express');
 require('dotenv').config();
 
-// 1. DÉMARRAGE IMMÉDIAT DU SERVEUR WEB (Pour satisfaire Render instantanément)
+// 1. DÉMARRAGE IMMÉDIAT DU SERVEUR WEB (Pour Render)
 const app = express();
 const PORT = process.env.PORT || 10000;
 
@@ -39,7 +39,8 @@ const modules = [
     { name: 'WelcomeManager', path: './modules/welcomeManager' }
 ];
 
-client.once('ready', async (c) => {
+// Utilisation de 'clientReady' pour éviter le deprecation warning
+client.once('clientReady', async (c) => {
     console.log(`\n==========================================`);
     console.log(`✅ [HELORIA GESTION] Connecté sous : ${c.user.tag}`);
     console.log(`==========================================\n`);
@@ -57,7 +58,7 @@ client.once('ready', async (c) => {
         console.error("⚠️ Erreur Présence :", err.message);
     }
 
-    // Chargement sécurisé des 5 modules (un crash dans un module ne coupe PLUS le bot)
+    // Chargement sécurisé des 5 modules
     for (const mod of modules) {
         try {
             const initFn = require(mod.path);
